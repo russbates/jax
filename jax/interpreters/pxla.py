@@ -2359,14 +2359,18 @@ def lower_sharding_computation(
     api_name: str,
     fun_name: str,
     in_shardings: Sequence[XLACompatibleSharding],
-    out_shardings: Sequence[XLACompatibleSharding],
+    out_shardings: Union[Sequence[XLACompatibleSharding], _UnspecifiedValue],
     donated_invars: Sequence[bool],
     global_in_avals: Sequence[core.ShapedArray],
     in_is_global: Sequence[bool]):
   # Device assignment across all inputs and outputs should be the same. This
   # is checked in pjit.
-  backend, first_sharding = _get_backend_from_shardings(
+  if _is_unspecified(out_shardings):
+    backend, first_sharding = _get_backend_from_shardings(in_shardings)  # type: ignore
+  else:
+    backend, first_sharding = _get_backend_from_shardings(
       it.chain(in_shardings, out_shardings))  # type: ignore
+
   name_stack = new_name_stack(wrap_name(fun_name, api_name))
 
   log_priority = logging.WARNING if config.jax_log_compiles else logging.DEBUG
@@ -2382,6 +2386,12 @@ def lower_sharding_computation(
   with dispatch.log_elapsed_time(f"Finished tracing + transforming {name_stack} "
                                  "in {elapsed_time} sec"):
     jaxpr, out_jaxpr_avals, consts = pe.trace_to_jaxpr_final(fun, in_jaxpr_avals)
+  # The caller of this code can pass in a singleton _UNSPECIFIED because the
+  # number of out_avals might not be known at that time and
+  # lower_sharing_computation calculates it above anyways.
+  if _is_unspecified(out_shardings):
+    out_shardings = (_UNSPECIFIED,) * len(out_jaxpr_avals)
+
   assert len(out_shardings) == len(out_jaxpr_avals)
 
   global_out_avals = out_jaxpr_avals

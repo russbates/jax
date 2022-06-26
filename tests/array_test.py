@@ -150,6 +150,9 @@ class JaxArrayTest(jtu.JaxTestCase):
       arr_float32 = arr.astype(jnp.float32)
       self.assertEqual(arr_float32.dtype, np.float32)
       self.assertArraysEqual(arr_float32, input_data.astype(np.float32))
+      self.assertLen(arr_float32.addressable_shards, 8)
+      for i in arr_float32.addressable_shards:
+        self.assertArraysEqual(i.data, input_data[i.index].astype(np.float32))
 
   def test_jnp_array_astype(self):
     with jax._src.config.jax_array(True):

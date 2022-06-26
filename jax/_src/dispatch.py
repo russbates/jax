@@ -89,7 +89,10 @@ ArgSpec = Tuple[core.AbstractValue, Optional[Device]]
 def arg_spec(x: Any) -> ArgSpec:
   aval = xla.abstractify(x)
   try:
-    return aval, x._device
+    if config.jax_array:
+      return aval, x.sharding
+    else:
+      return aval, x._device
   except:
     return aval, None
 
@@ -254,8 +257,22 @@ xla.xla_call_p.def_impl(_xla_call_impl)
 
 def _xla_callable_uncached(fun: lu.WrappedFun, device, backend, name,
                            donated_invars, keep_unused, *arg_specs):
-  return lower_xla_callable(fun, device, backend, name, donated_invars, False,
-                            keep_unused, *arg_specs).compile().unsafe_call
+  if config.jax_array:
+    from jax.interpreters import pxla
+    from jax.experimental import pjit
+
+    in_avals, in_shardings = util.unzip2(arg_specs)
+    # Pass in a singleton `_UNSPECIFIED` for out_shardings because we don't know
+    # the number of output avals at this stage. lower_sharding_computation will
+    # replicate it once it knows the number of out_avals.
+    return pxla.lower_sharding_computation(
+        fun, 'xla_callable', name, in_shardings, pjit._UNSPECIFIED,
+        donated_invars, in_avals,
+        in_is_global=(True,) * len(arg_specs)).compile(
+            _allow_propagation_to_outputs=True).unsafe_call
+  else:
+    return lower_xla_callable(fun, device, backend, name, donated_invars, False,
+                              keep_unused, *arg_specs).compile().unsafe_call
 
 xla_callable = lu.cache(_xla_callable_uncached)
 
