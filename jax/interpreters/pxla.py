@@ -981,7 +981,7 @@ def find_replicas(jaxpr, axis_size, global_axis_size):
 
 def should_tuple_args(shards: ShardInfo):
   # tuplify long arg lists for TPU
-  return len(shards.global_sharded_avals) > 100
+  return len(shards.global_sharded_avals) > 2000
 
 
 def stage_parallel_callable(
