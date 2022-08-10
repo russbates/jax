@@ -1504,14 +1504,14 @@ def emit_python_callback(
     has_side_effect: bool, *, sharding: Optional[xc.OpSharding] = None
     ) -> Tuple[List[ir.Value], Any, Any]:
   """Emits MHLO that calls back to a provided Python function."""
-  platform = ctx.module_context.platform
+  backend = xb.get_backend()
+  platform = backend.platform
   if platform in {"tpu"} and jax._src.lib.version < (0, 3, 15):
     raise ValueError(
         "`EmitPythonCallback` on TPU only supported on jaxlib >= 0.3.15")
   if platform not in {"cpu", "cuda", "rocm", "tpu"}:
     raise ValueError(
         f"`EmitPythonCallback` not supported on {platform} backend.")
-  backend = xb.get_backend(platform)
   result_shapes = util.flatten(
       [xla.aval_to_xla_shapes(result_aval) for result_aval in result_avals])
   operand_shapes = util.flatten(

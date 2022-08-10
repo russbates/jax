@@ -999,7 +999,7 @@ def _outside_call_translation_rule(ctx, avals_in, avals_out,
                                             flat_results_aval))
   need_callback_results_on_device = (not identity and
                                      len(non_empty_flat_results_aval) > 0)
-  use_outfeed = _use_outfeed(ctx.platform)
+  use_outfeed = _use_outfeed(xb.get_backend().platform)
   # TODO(sharadmv): Delete non-outfeed path when jaxlib minimum version is
   # bumped past 0.3.8.
   assert use_outfeed, 'Should be using MLIR path for `CustomCall` lowering'
@@ -1099,7 +1099,7 @@ def _outside_call_translation_rule(ctx, avals_in, avals_out,
         xla.aval_to_xla_shapes(res_aval)[0]
         for res_aval in callback_flat_results_aval
     ]
-    backend = xb.get_backend(ctx.platform)
+    backend = xb.get_backend()
     token_and_results_op, keep_alive = backend.emit_python_callback(
         wrapped_callback,
         comp,
@@ -1129,7 +1129,7 @@ def _outside_call_lowering(
     ctx: mlir.LoweringRuleContext, *args, has_token: bool, identity: bool,
     flat_results_aval=(), **params):
   """MLIR Lowering for `CustomCall`-based HCB."""
-  platform = ctx.module_context.platform
+  platform = xb.get_backend().platform
   use_outfeed = _use_outfeed(platform)
   if use_outfeed:
     # Fall back to XLA path if we are using the outfeed
